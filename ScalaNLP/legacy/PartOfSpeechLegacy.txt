@@ -1,0 +1,54 @@
+package legacy
+
+import jsonData.JsonKeys
+import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
+import org.apache.spark.sql.functions.{col, udf}
+import scala.collection.mutable
+
+object PartOfSpeechLegacy {
+  val keyPartOfSpeech = "pos"
+  val keyWord = "word"
+  val keyNouns = "nouns"
+  val keyVerbs = "verbs"
+  val keyAdjectives = "adjectives"
+
+  private val spark: SparkSession = SparkSession.builder().getOrCreate();
+  import spark.implicits._
+
+  def restructureColumnPOS(dataFrame: DataFrame)
+  : DataFrame = {
+    // Select the columns, which we want to have in the new data frame.
+    val selectColumns = Seq(JsonKeys.paperId, JsonKeys.paragraphIndex, keyPartOfSpeech)
+    val posDf = dataFrame.select(selectColumns.map(c => col(c)): _*)
+    // Now build a new data frame and resort the part of speech data.
+    posDf.rdd.map(row => {
+      // Extract the required data from the existing data frame.
+      val paperId = row.getAs[String](JsonKeys.paperId)
+      val paragraphIndex = row.getAs[Long](JsonKeys.paragraphIndex)
+      // The part of speech data is an array. We map each element's into a simple quadruple.
+      // The quadruple has the form (word, tag, start, end) where start and end are indices in the original text.
+      val pos = row.getAs[mutable.WrappedArray[GenericRowWithSchema]](keyPartOfSpeech).map(element => (
+        element.getAs[Map[String, String]](JsonKeys.metadata).getOrElse(keyWord, ""),
+        element.getAs[String](JsonKeys.result),
+        element.getAs[Int](JsonKeys.startIndex),
+        element.getAs[Int](JsonKeys.endIndex)))
+      // Create a new row by copying some of the existing columns and reformatting tha pos data.
+      // We give the main pos categories separate columns i.e. nouns, verbs, adjectives.
+      val updatedPosArray = (
+        paperId, paragraphIndex,
+        pos.filter(item => isNounTag(item._2)),
+        pos.filter(item => isVerbTag(item._2)),
+        pos.filter(item => isAdjectiveTag(item._2)))
+      updatedPosArray
+    })
+      // Convert the result back into a (sql) data frame and set the column names.
+      .toDF(JsonKeys.paperId, JsonKeys.paragraphIndex, keyNouns, keyVerbs, keyAdjectives)
+  }
+
+  def isNounTag(tag: String): Boolean = tag.toUpperCase.startsWith("N")
+
+  def isVerbTag(tag: String): Boolean = tag.toUpperCase.startsWith("V")
+
+  def isAdjectiveTag(tag: String): Boolean = tag.toUpperCase.startsWith("J")
+}

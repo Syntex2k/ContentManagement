@@ -1,0 +1,19 @@
+# Example controllers
+GET     /count                              controllers.CountController.count
+GET     /message                            controllers.AsyncController.message
+
+# Smoking indicator controller
+GET     /                                   controllers.SmokingController.getIndexView
+GET     /smoking                            controllers.SmokingController.getSmokingView
+GET     /smoking/api/sentences              controllers.SmokingController.getSentences
+GET     /smoking/api/paragraphs             controllers.SmokingController.getParagraphs
+POST    /smoking/import/sentences           controllers.SmokingController.postSentencesImportCommand
+POST    /smoking/import/paragraphs          controllers.SmokingController.postParagraphsImportCommand
+GET     /smoking/api/sentences/paragraph    controllers.SmokingController.getParagraphSentences(paperId: String, paragraphIndex: Int)
+GET     /smoking/api/sentence               controllers.SmokingController.getSentence(paperId: String, paragraphIndex: Int, sentenceIndex: Int)
+GET     /smoking/api/paragraph              controllers.SmokingController.getParagraph(paperId: String, paragraphIndex: Int)
+
+# Map static resources from the /public folder to the /assets URL path
+GET     /assets/*file                       controllers.Assets.versioned(path="/public", file: Asset)
+
+      

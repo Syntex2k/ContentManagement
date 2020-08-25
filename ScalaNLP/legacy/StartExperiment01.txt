@@ -1,0 +1,25 @@
+package legacy
+
+import jsonData.JsonFileUtils
+import org.apache.spark.sql.SparkSession
+import pipelines.ContentPipeline
+
+object StartExperiment01 {
+  private val inputFolder = "cleanedBodyContent";
+  private val outputFolder = "out"
+
+  def main(args: Array[String])
+  : Unit = {
+    val spark: SparkSession = SparkSession
+      .builder()
+      .appName("TopicAnalyzer")
+      .master("local[*]")
+      .config("spark.driver.memory", "12G")
+      .getOrCreate()
+
+    val dataFrame = JsonFileUtils.readJsonToDataFrame(inputFolder)
+    val contentDataFrame = ContentPipeline.getContentOfText(dataFrame)
+    val newDataFrame = dataFrame.join(contentDataFrame, "text").distinct()
+    JsonFileUtils.saveAsJson(newDataFrame, outputFolder);
+  }
+}
